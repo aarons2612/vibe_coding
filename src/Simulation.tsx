@@ -1253,11 +1253,11 @@ export default function Simulation({ onEvent, onExit }: Props) {
 
     // ---------- Pedestrians + the player ----------
     const pedRigs = g0.peds.map((_, i) => {
-      const r = makeHuman(PED_COLORS[i % PED_COLORS.length], PED_LEGS[i % PED_LEGS.length], PED_SKINS[i % PED_SKINS.length], 1.0);
+      const r = makeHuman(PED_COLORS[i % PED_COLORS.length], PED_LEGS[i % PED_LEGS.length], PED_SKINS[i % PED_SKINS.length], 0.9);
       scene.add(r.group);
       return r;
     });
-    const player = makeHuman(0x0d69ac, 0x4b974b, 0xf5cd30, 1.15);
+    const player = makeHuman(0x0d69ac, 0x4b974b, 0xf5cd30, 0.8);
     scene.add(player.group);
 
     // ---------- Particles (instanced cubes) ----------
@@ -1752,7 +1752,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
       let targetFov = 62;
       if (firstPerson) {
         // Eyes of the character, or the driver's seat.
-        const eyeH = subject ? 17 : 31;
+        const eyeH = subject ? 17 : 27;
         const fwd = subject ? 3 : 3.5;
         const baseAngle = subject ? subject.angle : g.face;
         desired.set(g.px + Math.cos(baseAngle) * fwd, eyeH, g.py + Math.sin(baseAngle) * fwd);
@@ -1765,8 +1765,8 @@ export default function Simulation({ onEvent, onExit }: Props) {
       } else {
         const far = mode === "far";
         const elev = clamp((far ? 0.95 : subject ? 0.26 : 0.4) + p, 0.06, 1.32);
-        const dist = far ? 300 : subject ? 112 + Math.min(34, speedNow * 0.09) : 78;
-        const upLook = far ? 4 : subject ? 14 : 22;
+        const dist = far ? 300 : subject ? 112 + Math.min(34, speedNow * 0.09) : 70;
+        const upLook = far ? 4 : subject ? 14 : 20;
         const ahead = subject ? 48 : 0;
         const ax = g.px + Math.cos(g.face) * ahead;
         const az = g.py + Math.sin(g.face) * ahead;
