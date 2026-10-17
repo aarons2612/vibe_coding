@@ -1,7 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import TowerStack, { type TowerEvent } from "./TowerStack";
 import Simulation, { type SimEvent } from "./Simulation";
 import GitQuest from "./components/features/gitquest/GitQuest";
+import Home, { type ViewMode } from "./Home";
 
 // ==========================================
 // 1. PROCEDURAL WEB AUDIO SOUND GENERATOR
@@ -246,8 +247,36 @@ const DEV_SNIPPETS: CodeSnippet[] = [
 // ==========================================
 // 5. MAIN APP COMPONENT
 // ==========================================
+const PATH_OF: Record<ViewMode, string> = {
+  home: "/",
+  casual: "/tower-stack",
+  dev: "/git-quest",
+  syntax: "/syntax-sprint",
+  sim: "/simulation",
+};
+
+function modeFromPath(path: string): ViewMode {
+  const clean = path.replace(/\/+$/, "") || "/";
+  const hit = (Object.keys(PATH_OF) as ViewMode[]).find((m) => PATH_OF[m] === clean);
+  return hit ?? "home";
+}
+
 export default function App() {
-  const [viewMode, setViewMode] = useState<"casual" | "dev" | "syntax" | "sim">("casual");
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => modeFromPath(window.location.pathname));
+
+  // Simple history-based routing: "/" lists every game, each game has its own path.
+  const setViewMode = (mode: ViewMode) => {
+    if (PATH_OF[mode] !== window.location.pathname) window.history.pushState({}, "", PATH_OF[mode]);
+    setViewModeState(mode);
+    window.scrollTo(0, 0);
+  };
+
+  useEffect(() => {
+    const onPop = () => setViewModeState(modeFromPath(window.location.pathname));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // ----------------------------------------
@@ -364,6 +393,16 @@ export default function App() {
     sfx.enabled = nextState;
   };
 
+  // The 3D simulation takes over the whole screen.
+  if (viewMode === "sim") {
+    return (
+      <>
+        <canvas id="confetti-canvas" />
+        <Simulation onEvent={handleSimEvent} onExit={() => setViewMode("home")} />
+      </>
+    );
+  }
+
   return (
     <>
       <canvas id="confetti-canvas" />
@@ -384,6 +423,13 @@ export default function App() {
           <div className="header-controls">
             <div className="view-toggle" role="group" aria-label="Layout view switch">
               <button
+                id="view-home-btn"
+                className={`toggle-btn ${viewMode === "home" ? "active" : ""}`}
+                onClick={() => setViewMode("home")}
+              >
+                🏠 Home
+              </button>
+              <button
                 id="view-casual-btn"
                 className={`toggle-btn ${viewMode === "casual" ? "active" : ""}`}
                 onClick={() => setViewMode("casual")}
@@ -397,16 +443,16 @@ export default function App() {
               >
                 💻 Dev · Git Quest
               </button>
-              <button
+              {/* <button
                 id="view-syntax-btn"
                 className={`toggle-btn ${viewMode === "syntax" ? "active" : ""}`}
                 onClick={() => setViewMode("syntax")}
               >
                 ⌨️ Syntax Sprint
-              </button>
+              </button> */}
               <button
                 id="view-sim-btn"
-                className={`toggle-btn ${viewMode === "sim" ? "active" : ""}`}
+                className="toggle-btn"
                 onClick={() => setViewMode("sim")}
               >
                 🏙️ Simulation
@@ -427,6 +473,8 @@ export default function App() {
 
         {/* Main Arena */}
         <main className={`arena-grid view-${viewMode}`}>
+          {viewMode === "home" && <Home onOpen={setViewMode} />}
+
           {viewMode === "casual" && <TowerStack onEvent={handleTowerEvent} />}
 
           {/* ======================================= */}
@@ -592,7 +640,7 @@ export default function App() {
           {/* ======================================= */}
           {/* SIMULATION (OPEN-WORLD COIN RUN)        */}
           {/* ======================================= */}
-          {viewMode === "sim" && <Simulation onEvent={handleSimEvent} />}
+
         </main>
 
         {/* Global Footer */}
