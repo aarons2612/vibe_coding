@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   GIT_SUBCOMMANDS,
   LEVELS,
@@ -7,6 +7,7 @@ import {
   emptyRepo,
   exec,
   runScript,
+  type Level,
   type Line,
   type RepoState,
 } from "../../../core/git";
@@ -38,6 +39,46 @@ function saveProgress(p: Record<string, number>) {
   }
 }
 
+// In-progress level, so a refresh resumes where the player left off.
+const SESSION_KEY = "gitquest_session";
+const MAX_SAVED_LINES = 300;
+const MAX_SAVED_UNDO = 30;
+const RESTORED = "↻ Session restored.";
+
+interface Session {
+  levelId: string;
+  fingerprint: string; // detects level definitions that changed since the save
+  state: RepoState;
+  undoStack: RepoState[];
+  lines: Line[];
+  moves: number;
+  hintsShown: number;
+  won: number | null;
+}
+
+const fingerprint = (l: Level) => JSON.stringify([l.setup, l.solution]);
+
+function loadSession(): Session | null {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null") as Session | null;
+    const level = s && LEVELS.find((l) => l.id === s.levelId);
+    return level && s && s.fingerprint === fingerprint(level) ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(s: Session) {
+  try {
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({ ...s, lines: s.lines.slice(-MAX_SAVED_LINES), undoStack: s.undoStack.slice(-MAX_SAVED_UNDO) }),
+    );
+  } catch {
+    /* storage full or unavailable — the session just won't resume */
+  }
+}
+
 const introLines = (title: string): Line[] => [
   { text: `⚔  ${title}`, kind: "info" },
   { text: "Type `git status` to look around, `help` for commands, `hint` if you're stuck.", kind: "hint" },
@@ -50,19 +91,30 @@ const rich = (text: string) =>
 
 export default function GitQuest({ fx }: { fx: GameFx }) {
   const [progress, setProgress] = useState(loadProgress);
+  const [saved] = useState(loadSession);
   const firstUnsolved = LEVELS.findIndex((l) => !progress[l.id]);
-  const [levelIdx, setLevelIdx] = useState(firstUnsolved === -1 ? 0 : firstUnsolved);
+  const [levelIdx, setLevelIdx] = useState(() =>
+    saved ? LEVELS.findIndex((l) => l.id === saved.levelId) : firstUnsolved === -1 ? 0 : firstUnsolved,
+  );
   const level = LEVELS[levelIdx];
 
   const start = useMemo(() => runScript(emptyRepo(), level.setup), [level]);
   const target = useMemo(() => runScript(start, level.solution), [start, level]);
 
-  const [state, setState] = useState<RepoState>(start);
-  const [undoStack, setUndoStack] = useState<RepoState[]>([]);
-  const [lines, setLines] = useState<Line[]>(() => introLines(level.title));
-  const [moves, setMoves] = useState(0);
-  const [hintsShown, setHintsShown] = useState(0);
-  const [won, setWon] = useState<number | null>(null);
+  const [state, setState] = useState<RepoState>(saved?.state ?? start);
+  const [undoStack, setUndoStack] = useState<RepoState[]>(saved?.undoStack ?? []);
+  const [lines, setLines] = useState<Line[]>(() =>
+    saved
+      ? [...saved.lines.filter((l) => l.text !== RESTORED), { text: RESTORED, kind: "hint" }]
+      : introLines(level.title),
+  );
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const [hintsShown, setHintsShown] = useState(saved?.hintsShown ?? 0);
+  const [won, setWon] = useState<number | null>(saved?.won ?? null);
+
+  useEffect(() => {
+    saveSession({ levelId: level.id, fingerprint: fingerprint(level), state, undoStack, lines, moves, hintsShown, won });
+  }, [level, state, undoStack, lines, moves, hintsShown, won]);
 
   const checks = useMemo(() => compareStates(state, target, level.match), [state, target, level]);
 
