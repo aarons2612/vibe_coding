@@ -340,7 +340,7 @@ export default function App() {
     if (e === "place") sfx.playClick();
     else if (e === "perfect") sfx.playCorrect();
     else if (e === "fail") sfx.playWrong();
-    else if (e === "milestone") {
+    else if (e === "levelup" || e === "milestone") {
       sfx.playVictory();
       launchConfetti();
     }
