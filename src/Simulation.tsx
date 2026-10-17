@@ -368,6 +368,82 @@ function makeAsphaltTexture() {
   return t;
 }
 
+function makeGrassTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const x = c.getContext("2d");
+  if (x) {
+    x.fillStyle = "#3a6b44";
+    x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 3500; i++) {
+      x.fillStyle = `hsla(${rand(95, 135)}, ${rand(30, 50)}%, ${rand(22, 40)}%, ${rand(0.25, 0.6)})`;
+      x.fillRect(Math.random() * 256, Math.random() * 256, rand(1, 3), rand(2, 6));
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  t.repeat.set(60, 60);
+  return t;
+}
+
+function makeTileTexture() {
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const x = c.getContext("2d");
+  if (x) {
+    x.fillStyle = "#a2a7b3";
+    x.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 500; i++) {
+      x.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "0,0,0"},${rand(0.02, 0.08)})`;
+      x.fillRect(Math.random() * 128, Math.random() * 128, rand(2, 8), rand(2, 8));
+    }
+    x.strokeStyle = "rgba(60,64,76,0.55)";
+    x.lineWidth = 2;
+    x.strokeRect(1, 1, 126, 126);
+    x.beginPath();
+    x.moveTo(64, 0);
+    x.lineTo(64, 128);
+    x.moveTo(0, 64);
+    x.lineTo(128, 64);
+    x.lineWidth = 1;
+    x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  t.repeat.set(BLOCK / 56, BLOCK / 56);
+  return t;
+}
+
+function makeCloudTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 128;
+  const x = c.getContext("2d");
+  if (x) {
+    for (let i = 0; i < 9; i++) {
+      const cx = rand(60, 196);
+      const cy = rand(50, 80);
+      const r = rand(28, 52);
+      const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, "rgba(255,255,255,0.55)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      x.fillStyle = g;
+      x.fillRect(0, 0, 256, 128);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 interface HumanRig {
   group: THREE.Group; // positioned + yawed
   body: THREE.Group; // tilts when knocked down
@@ -437,6 +513,22 @@ function makeHuman(torsoColor: number, legColor: number, skinColor: number, scal
   head.castShadow = true;
   body.add(head);
 
+  const hairColors = [0x2b1b10, 0x6b4423, 0xc9a14a, 0x111111];
+  const hair = new THREE.Mesh(
+    new RoundedBoxGeometry(6.9, 2.6, 6.9, 2, 0.9),
+    new THREE.MeshStandardMaterial({ color: hairColors[torsoColor % hairColors.length], roughness: 0.8 }),
+  );
+  hair.position.set(-0.2, 30.5, 0);
+  hair.castShadow = true;
+  body.add(hair);
+
+  const shoeM = new THREE.MeshStandardMaterial({ color: 0x1a1a1f, roughness: 0.6 });
+  for (const leg of [legL, legR]) {
+    const shoe = new THREE.Mesh(new RoundedBoxGeometry(7.6, 2.2, 6.4, 2, 0.6), shoeM);
+    shoe.position.set(0.8, -11, 0);
+    leg.add(shoe);
+  }
+
   const face = new THREE.Mesh(
     new THREE.PlaneGeometry(5.4, 5.4),
     new THREE.MeshBasicMaterial({ map: getFaceTexture(), transparent: true }),
@@ -454,8 +546,8 @@ interface CarRig {
   bodyMat: THREE.MeshPhysicalMaterial;
 }
 
-const glowWhite = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.9, 2.0), toneMapped: false });
-const glowRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.2, 0.2), toneMapped: false });
+const glowWhite = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 1.3, 1.0), toneMapped: false });
+const glowRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.3, 0.15, 0.15), toneMapped: false });
 
 function makeCar(color: string): CarRig {
   const group = new THREE.Group();
@@ -754,23 +846,23 @@ export default function Simulation({ onEvent, onExit }: Props) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.62;
+    renderer.toneMappingExposure = 0.5;
 
     const scene = new THREE.Scene();
-    const FOG = 0xd9a07a;
-    scene.fog = new THREE.FogExp2(FOG, 0.00075);
+    const FOG = 0x9fb4d6;
+    scene.fog = new THREE.FogExp2(FOG, 0.00045);
 
     const camera = new THREE.PerspectiveCamera(62, vw / vh, 1, 6000);
 
     // ---------- Sky + environment (dusk) ----------
-    const sunVec = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 9), THREE.MathUtils.degToRad(215));
+    const sunVec = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 28), THREE.MathUtils.degToRad(30));
     const sky = new Sky();
     sky.scale.setScalar(4500);
     const su = sky.material.uniforms;
-    su["turbidity"].value = 7;
-    su["rayleigh"].value = 2.2;
-    su["mieCoefficient"].value = 0.006;
-    su["mieDirectionalG"].value = 0.85;
+    su["turbidity"].value = 3;
+    su["rayleigh"].value = 1.2;
+    su["mieCoefficient"].value = 0.0015;
+    su["mieDirectionalG"].value = 0.6;
     su["sunPosition"].value.copy(sunVec);
     scene.add(sky);
 
@@ -779,17 +871,17 @@ export default function Simulation({ onEvent, onExit }: Props) {
     envScene.add(sky.clone());
     const envRT = pmrem.fromScene(envScene);
     scene.environment = envRT.texture;
-    scene.environmentIntensity = 0.55;
+    scene.environmentIntensity = 0.45;
 
     // ---------- Lights ----------
     scene.add(new THREE.HemisphereLight(0x8fa6d8, 0x3a2f35, 0.55));
-    const sun = new THREE.DirectionalLight(0xffc68c, 2.6);
+    const sun = new THREE.DirectionalLight(0xfff0dc, 2.2);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -260;
-    sun.shadow.camera.right = 260;
-    sun.shadow.camera.top = 260;
-    sun.shadow.camera.bottom = -260;
+    sun.shadow.mapSize.set(4096, 4096);
+    sun.shadow.camera.left = -220;
+    sun.shadow.camera.right = 220;
+    sun.shadow.camera.top = 220;
+    sun.shadow.camera.bottom = -220;
     sun.shadow.camera.near = 10;
     sun.shadow.camera.far = 1500;
     sun.shadow.bias = -0.0005;
@@ -812,7 +904,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
     // ---------- Ground ----------
     const grass = new THREE.Mesh(
       track(new THREE.PlaneGeometry(9000, 9000)),
-      track(new THREE.MeshStandardMaterial({ color: 0x3c6a45, roughness: 1 })),
+      track(new THREE.MeshStandardMaterial({ map: track(makeGrassTexture()), roughness: 1 })),
     );
     grass.rotation.x = -Math.PI / 2;
     grass.position.set(WORLD_W / 2, -1, WORLD_H / 2);
@@ -898,7 +990,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
     markings(unitBox, whiteMat, stripes);
 
     // ---------- Sidewalk blocks + curbs ----------
-    const walkMat = track(new THREE.MeshStandardMaterial({ color: 0x9a9fab, roughness: 0.9 }));
+    const walkMat = track(new THREE.MeshStandardMaterial({ map: track(makeTileTexture()), roughness: 0.9 }));
     const curbMat = track(new THREE.MeshStandardMaterial({ color: 0xc9ced8, roughness: 0.8 }));
     const walkGeo = track(new THREE.BoxGeometry(BLOCK, 2, BLOCK));
     const curbGeo = track(new THREE.BoxGeometry(BLOCK + 3, 1.2, BLOCK + 3));
@@ -928,7 +1020,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
     }
     const poleMat = track(new THREE.MeshStandardMaterial({ color: 0x2b2f38, metalness: 0.6, roughness: 0.5 }));
     const poles = new THREE.InstancedMesh(track(new THREE.CylinderGeometry(0.9, 1.3, 30, 8)), poleMat, lampPos.length);
-    const bulbMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 3, 1.6), toneMapped: false }));
+    const bulbMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.3, 0.8), toneMapped: false }));
     const bulbs = new THREE.InstancedMesh(track(new THREE.SphereGeometry(2.3, 10, 8)), bulbMat, lampPos.length);
     lampPos.forEach(([x, z], k) => {
       dummy.position.set(x, 17, z);
@@ -1040,14 +1132,14 @@ export default function Simulation({ onEvent, onExit }: Props) {
           map: f.map,
           emissiveMap: f.emissive,
           emissive: new THREE.Color(0xffffff),
-          emissiveIntensity: 1.7,
+          emissiveIntensity: 0.8,
           roughness: 0.7,
           metalness: 0.08,
         }),
       );
     };
     const antennaMat = track(new THREE.MeshStandardMaterial({ color: 0x9aa0ac, metalness: 0.7, roughness: 0.4 }));
-    const beaconMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 0.3, 0.3), toneMapped: false }));
+    const beaconMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 0.2, 0.2), toneMapped: false }));
     for (const b of BUILDINGS) {
       const ry = Math.max(1, Math.round(b.height / 56));
       const sideX = wallMat(b.hue, Math.max(1, Math.round(b.h / 56)), ry);
@@ -1058,6 +1150,14 @@ export default function Simulation({ onEvent, onExit }: Props) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       scene.add(mesh);
+
+      const contact = new THREE.Mesh(
+        track(new THREE.PlaneGeometry(b.w + 16, b.h + 16)),
+        track(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false })),
+      );
+      contact.rotation.x = -Math.PI / 2;
+      contact.position.set(b.x + b.w / 2, 2.15, b.y + b.h / 2);
+      scene.add(contact);
 
       const cornice = new THREE.Mesh(track(new THREE.BoxGeometry(b.w + 4, 3, b.h + 4)), roof);
       cornice.position.set(b.x + b.w / 2, b.height + 3.5, b.y + b.h / 2);
@@ -1109,11 +1209,24 @@ export default function Simulation({ onEvent, onExit }: Props) {
       scene.add(far);
     }
 
+    // ---------- Clouds ----------
+    const cloudTex = track(makeCloudTexture());
+    const clouds: THREE.Sprite[] = [];
+    for (let i = 0; i < 26; i++) {
+      const m = track(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(2.2, 2.2, 2.3), transparent: true, opacity: rand(0.35, 0.65), depthWrite: false, fog: false }));
+      const sp = new THREE.Sprite(m);
+      const w = rand(600, 1100);
+      sp.scale.set(w, w * 0.4, 1);
+      sp.position.set(rand(-1800, WORLD_W + 1800), rand(650, 950), rand(-1800, WORLD_H + 1800));
+      scene.add(sp);
+      clouds.push(sp);
+    }
+
     // ---------- Coins ----------
     const g0 = gameRef.current;
     const coinGeo = track(new THREE.CylinderGeometry(1, 1, 0.28, 24));
-    const yellowCoinMat = track(new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xd9a400, emissiveIntensity: 1.1, metalness: 0.7, roughness: 0.25 }));
-    const goldMat = track(new THREE.MeshStandardMaterial({ color: 0xfb923c, emissive: 0xea580c, emissiveIntensity: 1.3, metalness: 0.7, roughness: 0.25 }));
+    const yellowCoinMat = track(new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xd9a400, emissiveIntensity: 0.5, metalness: 0.7, roughness: 0.25 }));
+    const goldMat = track(new THREE.MeshStandardMaterial({ color: 0xfb923c, emissive: 0xea580c, emissiveIntensity: 0.6, metalness: 0.7, roughness: 0.25 }));
     const coinMeshes: THREE.Mesh[] = [];
     const coinPivots = g0.coinList.map(() => {
       const m = new THREE.Mesh(coinGeo, yellowCoinMat);
@@ -1140,11 +1253,11 @@ export default function Simulation({ onEvent, onExit }: Props) {
 
     // ---------- Pedestrians + the player ----------
     const pedRigs = g0.peds.map((_, i) => {
-      const r = makeHuman(PED_COLORS[i % PED_COLORS.length], PED_LEGS[i % PED_LEGS.length], PED_SKINS[i % PED_SKINS.length], 1.2);
+      const r = makeHuman(PED_COLORS[i % PED_COLORS.length], PED_LEGS[i % PED_LEGS.length], PED_SKINS[i % PED_SKINS.length], 1.0);
       scene.add(r.group);
       return r;
     });
-    const player = makeHuman(0x0d69ac, 0x4b974b, 0xf5cd30, 1.4);
+    const player = makeHuman(0x0d69ac, 0x4b974b, 0xf5cd30, 1.15);
     scene.add(player.group);
 
     // ---------- Particles (instanced cubes) ----------
@@ -1167,7 +1280,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
           life: 0,
           max: rand(0.4, 0.8),
           size: rand(2, 4.5),
-          color: new THREE.Color(color).multiplyScalar(2.2),
+          color: new THREE.Color(color).multiplyScalar(1.2),
         });
       }
     };
@@ -1178,11 +1291,11 @@ export default function Simulation({ onEvent, onExit }: Props) {
     };
 
     // ---------- Waypoint beam ----------
-    const beamMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.4, 1.6), transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+    const beamMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.3, 0.9), transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
     const beam = new THREE.Mesh(track(new THREE.CylinderGeometry(7, 7, 700, 20, 1, true)), beamMat);
     beam.visible = false;
     scene.add(beam);
-    const ringMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.4, 1.6), transparent: true, opacity: 0.8, side: THREE.DoubleSide, toneMapped: false }));
+    const ringMat = track(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.3, 0.9), transparent: true, opacity: 0.7, side: THREE.DoubleSide, toneMapped: false }));
     const wpRing = new THREE.Mesh(track(new THREE.RingGeometry(14, 20, 32)), ringMat);
     wpRing.rotation.x = -Math.PI / 2;
     wpRing.visible = false;
@@ -1194,7 +1307,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
     composer.setPixelRatio(dpr);
     composer.setSize(vw, vh);
     composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(vw, vh), 0.55, 0.7, 0.85);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(vw, vh), 0.12, 0.35, 2.0);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
     disposables.push(composer, target);
@@ -1594,7 +1707,12 @@ export default function Simulation({ onEvent, onExit }: Props) {
         wpRing.position.set(wp.x, 3, wp.y);
         const pulse = 1 + Math.sin(now / 220) * 0.18;
         wpRing.scale.set(pulse, pulse, 1);
-        beamMat.opacity = 0.28 + Math.sin(now / 300) * 0.08;
+        beamMat.opacity = 0.2 + Math.sin(now / 300) * 0.05;
+      }
+
+      for (const cl of clouds) {
+        cl.position.x += 7 * dt;
+        if (cl.position.x > WORLD_W + 2000) cl.position.x = -2000;
       }
 
       // Headlights follow the driven car
@@ -1604,7 +1722,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
         const fz = Math.sin(c.angle);
         headlight.position.set(c.x + fx * 20, 10, c.y + fz * 20);
         headlight.target.position.set(c.x + fx * 140, 0, c.y + fz * 140);
-        headlight.intensity = 14;
+        headlight.intensity = 6;
       } else {
         headlight.intensity = 0;
       }
@@ -1634,7 +1752,7 @@ export default function Simulation({ onEvent, onExit }: Props) {
       let targetFov = 62;
       if (firstPerson) {
         // Eyes of the character, or the driver's seat.
-        const eyeH = subject ? 17 : 38;
+        const eyeH = subject ? 17 : 31;
         const fwd = subject ? 3 : 3.5;
         const baseAngle = subject ? subject.angle : g.face;
         desired.set(g.px + Math.cos(baseAngle) * fwd, eyeH, g.py + Math.sin(baseAngle) * fwd);
@@ -1647,8 +1765,8 @@ export default function Simulation({ onEvent, onExit }: Props) {
       } else {
         const far = mode === "far";
         const elev = clamp((far ? 0.95 : subject ? 0.26 : 0.4) + p, 0.06, 1.32);
-        const dist = far ? 300 : subject ? 112 + Math.min(34, speedNow * 0.09) : 92;
-        const upLook = far ? 4 : subject ? 14 : 26;
+        const dist = far ? 300 : subject ? 112 + Math.min(34, speedNow * 0.09) : 78;
+        const upLook = far ? 4 : subject ? 14 : 22;
         const ahead = subject ? 48 : 0;
         const ax = g.px + Math.cos(g.face) * ahead;
         const az = g.py + Math.sin(g.face) * ahead;
