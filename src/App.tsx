@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import GitQuest from "./components/features/gitquest/GitQuest";
 
 // ==========================================
 // 1. PROCEDURAL WEB AUDIO SOUND GENERATOR
@@ -345,7 +346,8 @@ export default function App() {
 
   // Casual Timer interval
   useEffect(() => {
-    if (casualOver) return;
+    // pause Brain Clash while it isn't on screen
+    if (casualOver || viewMode === "dev") return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -358,7 +360,7 @@ export default function App() {
     }, 60);
 
     return () => clearInterval(timer);
-  }, [casualOver, isMatch, handleCasualAnswer]);
+  }, [casualOver, isMatch, handleCasualAnswer, viewMode]);
 
   const restartCasual = () => {
     setCasualScore(0);
@@ -459,8 +461,9 @@ export default function App() {
   // Keyboard controls listener (Casual arrow keys support)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in Dev input or textfields
-      if (document.activeElement === hiddenInputRef.current) return;
+      // Don't intercept if user is typing in any input (Syntax Sprint, Git Quest terminal) or the casual game is hidden
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || viewMode === "dev") return;
 
       if (e.key === "ArrowLeft") {
         e.preventDefault();
@@ -473,7 +476,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleCasualAnswer]);
+  }, [handleCasualAnswer, viewMode]);
 
   const toggleSound = () => {
     const nextState = !soundEnabled;
@@ -519,7 +522,7 @@ export default function App() {
                 className={`toggle-btn ${viewMode === "dev" ? "active" : ""}`}
                 onClick={() => setViewMode("dev")}
               >
-                💻 Dev Only
+                💻 Dev · Git Quest
               </button>
             </div>
 
@@ -646,7 +649,32 @@ export default function App() {
           {/* ======================================= */}
           {/* RIGHT: DEV GAME (SYNTAX SPRINT)         */}
           {/* ======================================= */}
-          {(viewMode === "both" || viewMode === "dev") && (
+          {/* DEV ONLY: GIT QUEST */}
+          {viewMode === "dev" && (
+            <section className="arena-card dev" aria-labelledby="gitquest-title">
+              <div className="card-header">
+                <div>
+                  <span className="tag-badge tag-dev">⚡ For 10x Developers</span>
+                  <h2 id="gitquest-title" className="game-title">
+                    Git Quest
+                  </h2>
+                  <p className="game-desc">Rescue broken repos by typing real git commands. Match the target graph to win.</p>
+                </div>
+              </div>
+              <GitQuest
+                fx={{
+                  click: () => sfx.playClick(),
+                  error: () => sfx.playWrong(),
+                  win: () => {
+                    sfx.playVictory();
+                    launchConfetti();
+                  },
+                }}
+              />
+            </section>
+          )}
+
+          {viewMode === "both" && (
             <section className="arena-card dev" aria-labelledby="dev-game-title">
               <div className="card-header">
                 <div>

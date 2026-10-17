@@ -188,7 +188,8 @@ button {
 }
 
 .arena-grid.view-dev {
-  grid-template-columns: minmax(0, 840px);
+  /* Git Quest uses the full page width */
+  grid-template-columns: minmax(0, 1fr);
   justify-content: center;
 }
 
