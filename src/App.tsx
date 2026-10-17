@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import TowerStack, { type TowerEvent } from "./TowerStack";
+import Simulation, { type SimEvent } from "./Simulation";
 
 // ==========================================
 // 1. PROCEDURAL WEB AUDIO SOUND GENERATOR
@@ -245,7 +246,7 @@ const DEV_SNIPPETS: CodeSnippet[] = [
 // 5. MAIN APP COMPONENT
 // ==========================================
 export default function App() {
-  const [viewMode, setViewMode] = useState<"casual" | "dev">("casual");
+  const [viewMode, setViewMode] = useState<"casual" | "dev" | "sim">("casual");
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // ----------------------------------------
@@ -346,6 +347,16 @@ export default function App() {
     }
   };
 
+  const handleSimEvent = (e: SimEvent) => {
+    if (e === "coin") sfx.playCorrect();
+    else if (e === "gold") sfx.playVictory();
+    else if (e === "hit") sfx.playWrong();
+    else if (e === "end") {
+      sfx.playVictory();
+      launchConfetti();
+    } else sfx.playClick();
+  };
+
   const toggleSound = () => {
     const nextState = !soundEnabled;
     setSoundEnabled(nextState);
@@ -365,7 +376,7 @@ export default function App() {
             </span>
             <div>
               <h1 className="brand-title">DUAL ARENA</h1>
-              <p className="brand-subtitle">Casual Tower Stack vs Developer Syntax Sprint</p>
+              <p className="brand-subtitle">Tower Stack, Syntax Sprint &amp; the City Simulation</p>
             </div>
           </div>
 
@@ -384,6 +395,13 @@ export default function App() {
                 onClick={() => setViewMode("dev")}
               >
                 💻 Dev
+              </button>
+              <button
+                id="view-sim-btn"
+                className={`toggle-btn ${viewMode === "sim" ? "active" : ""}`}
+                onClick={() => setViewMode("sim")}
+              >
+                🏙️ Simulation
               </button>
             </div>
 
@@ -535,6 +553,11 @@ export default function App() {
               )}
             </section>
           )}
+
+          {/* ======================================= */}
+          {/* SIMULATION (OPEN-WORLD COIN RUN)        */}
+          {/* ======================================= */}
+          {viewMode === "sim" && <Simulation onEvent={handleSimEvent} />}
         </main>
 
         {/* Global Footer */}
