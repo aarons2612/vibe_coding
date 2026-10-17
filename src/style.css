@@ -187,7 +187,8 @@ button {
   justify-content: center;
 }
 
-.arena-grid.view-dev {
+.arena-grid.view-dev,
+.arena-grid.view-syntax {
   grid-template-columns: minmax(0, 840px);
   justify-content: center;
 }
