@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef } from "react";
+import TowerStack, { type TowerEvent } from "./TowerStack";
 
 // ==========================================
 // 1. PROCEDURAL WEB AUDIO SOUND GENERATOR
@@ -192,25 +193,6 @@ function launchConfetti() {
 }
 
 // ==========================================
-// 3. CASUAL DATA & CONFIG (BRAIN CLASH)
-// ==========================================
-interface ColorItem {
-  name: string;
-  hex: string;
-}
-
-const COLOR_PALETTE: ColorItem[] = [
-  { name: "RED", hex: "#ef4444" },
-  { name: "BLUE", hex: "#3b82f6" },
-  { name: "GREEN", hex: "#10b981" },
-  { name: "YELLOW", hex: "#eab308" },
-  { name: "PURPLE", hex: "#a855f7" },
-  { name: "CYAN", hex: "#06b6d4" },
-  { name: "PINK", hex: "#ec4899" },
-  { name: "ORANGE", hex: "#f97316" },
-];
-
-// ==========================================
 // 4. DEV SNIPPETS DATA (SYNTAX SPRINT)
 // ==========================================
 interface CodeSnippet {
@@ -260,113 +242,11 @@ const DEV_SNIPPETS: CodeSnippet[] = [
 ];
 
 // ==========================================
-// 5. MAIN DUAL APP COMPONENT
+// 5. MAIN APP COMPONENT
 // ==========================================
 export default function App() {
-  const [viewMode, setViewMode] = useState<"both" | "casual" | "dev">("both");
+  const [viewMode, setViewMode] = useState<"casual" | "dev">("casual");
   const [soundEnabled, setSoundEnabled] = useState(true);
-
-  // ----------------------------------------
-  // CASUAL GAME STATE (Brain Clash)
-  // ----------------------------------------
-  const [casualScore, setCasualScore] = useState(0);
-  const [casualBest, setCasualBest] = useState(() => {
-    return parseInt(localStorage.getItem("arena_casual_best") || "0", 10);
-  });
-  const [casualStreak, setCasualStreak] = useState(0);
-  const [casualLives, setCasualLives] = useState(3);
-  const [casualOver, setCasualOver] = useState(false);
-  const [casualStageAnim, setCasualStageAnim] = useState<"" | "shake" | "pop">("");
-  const [timeLeft, setTimeLeft] = useState(100); // 100% down to 0%
-
-  // Current question: word name vs rendered color
-  const [currentWord, setCurrentWord] = useState<ColorItem>(COLOR_PALETTE[0]);
-  const [currentColor, setCurrentColor] = useState<ColorItem>(COLOR_PALETTE[0]);
-  const [isMatch, setIsMatch] = useState(true);
-
-  const generateCasualQuestion = useCallback(() => {
-    const wordItem = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
-    const shouldMatch = Math.random() > 0.5;
-
-    let colorItem = wordItem;
-    if (!shouldMatch) {
-      const otherColors = COLOR_PALETTE.filter((c) => c.name !== wordItem.name);
-      colorItem = otherColors[Math.floor(Math.random() * otherColors.length)];
-    }
-
-    setCurrentWord(wordItem);
-    setCurrentColor(colorItem);
-    setIsMatch(wordItem.name === colorItem.name);
-    setTimeLeft(100);
-  }, []);
-
-  const handleCasualAnswer = useCallback(
-    (answeredMatch: boolean) => {
-      if (casualOver) return;
-
-      const correct = answeredMatch === isMatch;
-
-      if (correct) {
-        sfx.playCorrect();
-        const nextScore = casualScore + 10 * Math.max(1, Math.floor((casualStreak + 1) / 3));
-        const nextStreak = casualStreak + 1;
-        setCasualScore(nextScore);
-        setCasualStreak(nextStreak);
-        setCasualStageAnim("pop");
-        setTimeout(() => setCasualStageAnim(""), 250);
-
-        if (nextScore > casualBest) {
-          setCasualBest(nextScore);
-          localStorage.setItem("arena_casual_best", nextScore.toString());
-        }
-
-        if (nextStreak > 0 && nextStreak % 5 === 0) {
-          launchConfetti();
-        }
-
-        generateCasualQuestion();
-      } else {
-        sfx.playWrong();
-        setCasualStageAnim("shake");
-        setTimeout(() => setCasualStageAnim(""), 350);
-        setCasualStreak(0);
-        const nextLives = casualLives - 1;
-        setCasualLives(nextLives);
-
-        if (nextLives <= 0) {
-          setCasualOver(true);
-        } else {
-          generateCasualQuestion();
-        }
-      }
-    },
-    [casualOver, isMatch, casualScore, casualStreak, casualBest, casualLives, generateCasualQuestion]
-  );
-
-  // Casual Timer interval
-  useEffect(() => {
-    if (casualOver) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 0) {
-          handleCasualAnswer(!isMatch); // timeout counts as wrong
-          return 100;
-        }
-        return prev - 2.5; // ~2.5 seconds per turn
-      });
-    }, 60);
-
-    return () => clearInterval(timer);
-  }, [casualOver, isMatch, handleCasualAnswer]);
-
-  const restartCasual = () => {
-    setCasualScore(0);
-    setCasualStreak(0);
-    setCasualLives(3);
-    setCasualOver(false);
-    generateCasualQuestion();
-  };
 
   // ----------------------------------------
   // DEV GAME STATE (Syntax Sprint)
@@ -456,24 +336,15 @@ export default function App() {
     }
   };
 
-  // Keyboard controls listener (Casual arrow keys support)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in Dev input or textfields
-      if (document.activeElement === hiddenInputRef.current) return;
-
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        handleCasualAnswer(true);
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        handleCasualAnswer(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleCasualAnswer]);
+  const handleTowerEvent = (e: TowerEvent) => {
+    if (e === "place") sfx.playClick();
+    else if (e === "perfect") sfx.playCorrect();
+    else if (e === "fail") sfx.playWrong();
+    else if (e === "milestone") {
+      sfx.playVictory();
+      launchConfetti();
+    }
+  };
 
   const toggleSound = () => {
     const nextState = !soundEnabled;
@@ -494,32 +365,25 @@ export default function App() {
             </span>
             <div>
               <h1 className="brand-title">DUAL ARENA</h1>
-              <p className="brand-subtitle">Casual Brain Clash vs Developer Syntax Sprint</p>
+              <p className="brand-subtitle">Casual Tower Stack vs Developer Syntax Sprint</p>
             </div>
           </div>
 
           <div className="header-controls">
             <div className="view-toggle" role="group" aria-label="Layout view switch">
               <button
-                id="view-both-btn"
-                className={`toggle-btn ${viewMode === "both" ? "active" : ""}`}
-                onClick={() => setViewMode("both")}
-              >
-                ⚡ Side-by-Side
-              </button>
-              <button
                 id="view-casual-btn"
                 className={`toggle-btn ${viewMode === "casual" ? "active" : ""}`}
                 onClick={() => setViewMode("casual")}
               >
-                🎮 Casual Only
+                🎮 Casual
               </button>
               <button
                 id="view-dev-btn"
                 className={`toggle-btn ${viewMode === "dev" ? "active" : ""}`}
                 onClick={() => setViewMode("dev")}
               >
-                💻 Dev Only
+                💻 Dev
               </button>
             </div>
 
@@ -535,118 +399,14 @@ export default function App() {
           </div>
         </header>
 
-        {/* Main Side-by-Side Arena */}
+        {/* Main Arena */}
         <main className={`arena-grid view-${viewMode}`}>
-          {/* ======================================= */}
-          {/* LEFT: CASUAL GAME (BRAIN CLASH)        */}
-          {/* ======================================= */}
-          {(viewMode === "both" || viewMode === "casual") && (
-            <section className="arena-card casual" aria-labelledby="casual-game-title">
-              <div className="card-header">
-                <div>
-                  <span className="tag-badge tag-casual">👾 For Normal Humans</span>
-                  <h2 id="casual-game-title" className="game-title">
-                    Brain Clash
-                  </h2>
-                  <p className="game-desc">
-                    Does the text <strong>color</strong> match the <strong>word</strong>?
-                  </p>
-                </div>
-
-                <div className="lives-row" title={`${casualLives} lives remaining`}>
-                  {[1, 2, 3].map((heart) => (
-                    <span key={heart} aria-hidden="true">
-                      {heart <= casualLives ? "❤️" : "🖤"}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Casual Stats */}
-              <div className="stats-bar">
-                <div className="stat-item">
-                  <span className="stat-label">Score</span>
-                  <span className="stat-val casual-val">{casualScore}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Streak</span>
-                  <span className="stat-val casual-val">{casualStreak}🔥</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Best Record</span>
-                  <span className="stat-val">{casualBest}</span>
-                </div>
-              </div>
-
-              {/* Countdown Bar */}
-              <div className="timer-track" aria-hidden="true">
-                <div className="timer-fill casual" style={{ width: `${Math.max(0, timeLeft)}%` }} />
-              </div>
-
-              {/* Interactive Stage */}
-              <div className={`casual-stage ${casualStageAnim}`}>
-                {casualStreak >= 3 && (
-                  <div className="streak-pill">
-                    <span>⚡</span>
-                    <span>{Math.floor(casualStreak / 3) + 1}x Multiplier!</span>
-                  </div>
-                )}
-
-                <div className="color-prompt-box">
-                  <p className="color-helper">INK COLOR vs WORD MEANING</p>
-                  <div
-                    className="color-target-word"
-                    style={{ color: currentColor.hex }}
-                    role="alert"
-                    aria-live="assertive"
-                  >
-                    {currentWord.name}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="casual-actions">
-                <button
-                  id="casual-match-btn"
-                  className="btn-choice btn-match"
-                  onClick={() => handleCasualAnswer(true)}
-                  disabled={casualOver}
-                >
-                  <span>✅ MATCH</span>
-                  <span className="key-hint">← Left</span>
-                </button>
-
-                <button
-                  id="casual-clash-btn"
-                  className="btn-choice btn-clash"
-                  onClick={() => handleCasualAnswer(false)}
-                  disabled={casualOver}
-                >
-                  <span>❌ CLASH</span>
-                  <span className="key-hint">Right →</span>
-                </button>
-              </div>
-
-              {/* Game Over Modal */}
-              {casualOver && (
-                <div className="overlay-screen" role="dialog" aria-modal="true">
-                  <div className="modal-icon">💥</div>
-                  <h3 className="modal-title">Game Over!</h3>
-                  <p className="modal-subtitle">Your brain melted under the Stroop pressure.</p>
-                  <div className="score-badge-big casual-val">{casualScore} PTS</div>
-                  <button id="casual-retry-btn" className="btn-play-again btn-play-casual" onClick={restartCasual}>
-                    🔄 Play Again
-                  </button>
-                </div>
-              )}
-            </section>
-          )}
+          {viewMode === "casual" && <TowerStack onEvent={handleTowerEvent} />}
 
           {/* ======================================= */}
-          {/* RIGHT: DEV GAME (SYNTAX SPRINT)         */}
+          {/* DEV GAME (SYNTAX SPRINT)                */}
           {/* ======================================= */}
-          {(viewMode === "both" || viewMode === "dev") && (
+          {viewMode === "dev" && (
             <section className="arena-card dev" aria-labelledby="dev-game-title">
               <div className="card-header">
                 <div>
