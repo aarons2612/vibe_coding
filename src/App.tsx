@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import TowerStack, { type TowerEvent } from "./TowerStack";
 import Simulation, { type SimEvent } from "./Simulation";
+import GitQuest from "./components/features/gitquest/GitQuest";
 
 // ==========================================
 // 1. PROCEDURAL WEB AUDIO SOUND GENERATOR
@@ -246,7 +247,7 @@ const DEV_SNIPPETS: CodeSnippet[] = [
 // 5. MAIN APP COMPONENT
 // ==========================================
 export default function App() {
-  const [viewMode, setViewMode] = useState<"casual" | "dev" | "sim">("casual");
+  const [viewMode, setViewMode] = useState<"casual" | "dev" | "syntax" | "sim">("casual");
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // ----------------------------------------
@@ -376,7 +377,7 @@ export default function App() {
             </span>
             <div>
               <h1 className="brand-title">DUAL ARENA</h1>
-              <p className="brand-subtitle">Tower Stack, Syntax Sprint &amp; the City Simulation</p>
+              <p className="brand-subtitle">Tower Stack, Git Quest, Syntax Sprint &amp; the City Simulation</p>
             </div>
           </div>
 
@@ -394,7 +395,14 @@ export default function App() {
                 className={`toggle-btn ${viewMode === "dev" ? "active" : ""}`}
                 onClick={() => setViewMode("dev")}
               >
-                💻 Dev
+                💻 Dev · Git Quest
+              </button>
+              <button
+                id="view-syntax-btn"
+                className={`toggle-btn ${viewMode === "syntax" ? "active" : ""}`}
+                onClick={() => setViewMode("syntax")}
+              >
+                ⌨️ Syntax Sprint
               </button>
               <button
                 id="view-sim-btn"
@@ -422,9 +430,36 @@ export default function App() {
           {viewMode === "casual" && <TowerStack onEvent={handleTowerEvent} />}
 
           {/* ======================================= */}
-          {/* DEV GAME (SYNTAX SPRINT)                */}
+          {/* DEV GAME (GIT QUEST)                    */}
           {/* ======================================= */}
           {viewMode === "dev" && (
+            <section className="arena-card dev" aria-labelledby="gitquest-title">
+              <div className="card-header">
+                <div>
+                  <span className="tag-badge tag-dev">⚡ For 10x Developers</span>
+                  <h2 id="gitquest-title" className="game-title">
+                    Git Quest
+                  </h2>
+                  <p className="game-desc">Rescue broken repos by typing real git commands. Match the target graph to win.</p>
+                </div>
+              </div>
+              <GitQuest
+                fx={{
+                  click: () => sfx.playClick(),
+                  error: () => sfx.playWrong(),
+                  win: () => {
+                    sfx.playVictory();
+                    launchConfetti();
+                  },
+                }}
+              />
+            </section>
+          )}
+
+          {/* ======================================= */}
+          {/* DEV GAME (SYNTAX SPRINT)                */}
+          {/* ======================================= */}
+          {viewMode === "syntax" && (
             <section className="arena-card dev" aria-labelledby="dev-game-title">
               <div className="card-header">
                 <div>
